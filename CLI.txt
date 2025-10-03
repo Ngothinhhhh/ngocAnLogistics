@@ -1,0 +1,11 @@
+﻿
+
+
+
+
+MIGRATION DATABASE : 
+	build  : dotnet ef migrations add InitialCreate8 -o Migrations -c FleetDB
+	update : dotnet ef database update  
+BUILD AND RUN PROJECT :
+	build : dotnet build
+	run   : dotnet runclear

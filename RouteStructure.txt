@@ -1,0 +1,35 @@
+﻿
+
+LUỒNG DỮ LIÊU : 
+
+        [ Client (Browser hoặc App) ]
+                    |
+                    | HTTP POST /api/auth/login
+                    v
+        [ ASP.NET Core Middleware Pipeline ]
+                    |
+                    v
+        [ AuthController ]
+           - Controller được tạo
+           - Constructor nhận FleetDB (_context) từ DI container
+                    |
+                    v
+        [ FleetDB (DbContext) ]
+           - _context.Drivers (DbSet<Driver>)
+           - EF Core tạo câu truy vấn SQL
+                    |
+                    v
+        [ Database (SQL Server, MySQL, etc.) ]
+           - Thực thi SQL: SELECT * FROM Drivers
+           - Trả dữ liệu về cho EF Core
+                    |
+                    v
+        [ EF Core ]
+           - Map dữ liệu thành danh sách các đối tượng Driver
+                    |
+                    v
+        [ AuthController ]
+           - Trả kết quả Ok(customers) dưới dạng JSON
+                    |
+                    v
+        [ Client nhận JSON data hiển thị hoặc xử lý tiếp ]

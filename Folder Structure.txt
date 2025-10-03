@@ -1,0 +1,151 @@
+﻿
+
+Fleet /	
+    |---- Configurations/       ← Chứa các Logic COnfig của Database , JWT , ... Các config ở đây sẽ được tiêm tự động (DI) vào trong Program.cs để chạy chương trình .
+	|---- Controllers/			← Chứa các API Controller => Xử lý request HTTP từ client
+	|
+	|---- Models/				← Chứa các class mô tả dữ liệu từ DataBase => EF Core sẽ liên kết các class trong thư mục này vớzi bảng DB tương ứng để thực hiện các thao tác CRUD
+	|
+	|---- DTOs/                 ← Chứa các class dùng để nhận/gửi dữ liệu qua API (Data Transfer Objects) => bạn nên tạo class riêng trong DTOs/ để định nghĩa dữ liệu gửi hoặc nhận, thay vì dùng trực tiếp model từ DB
+	|
+	|---- Services/             ← Chứa logic nghiệp vụ thay vì phải viết code ở trong Controller .   
+	|
+	│   ├── Interfaces/         ← Interface cho các service => Tách phần định nghĩa ra khỏi phần triển khai ==> nhưng khi có các lớp và pthuc sử dụng lại nhiều mới nên làm, ko sẽ gây ra over-engineer .
+	|														=> Giúp dễ test, dễ thay thế, và tuân theo nguyên tắc Dependency Injection.
+	|														VD : Định nghĩa các interface cho IOrderService , và các serviceOrder sẽ implement nó .
+	|
+	|---- Data/                 ← Chứa AppDbContext, seed data: khởi tạo dữ liêu trước ki app hoạt động, migrations:khi có thay đổi cấu trúc dữ liệu . VD: 1 file DbContext để kết nối model với DB thông qua các class ở Models/ 
+	|
+	|---- Helpers/              ← Các tiện ích (ex: JWT helper, paging helper) => Tập hợp các class hỗ trợ tiện ích, không xử lý nghiệp vụ chính
+	|
+	|---- Middlewares/          ← Middleware tự custom nếu có : [Authorize(Roles = "Driver")] trên Controller Driver để phân quyền chỉ có Driver return lỗi 403.
+	|
+	|
+	|
+	|---- Program.cs
+
+	
+
+	====> LUỒNG HOẠT ĐỘNG :
+
+-------------------------------------------------------------
+|	Client →												|
+|	Program.cs (chạy App, thiết lập DI, middleware) →		|	
+|	Middlewares/ →											|
+|	Controllers/ →											|
+|	Services/ →												|
+|	DbContext →												|
+|	Database												|
+-------------------------------------------------------------
+
+
+
+
+
+====> MỐI QUAN HỆ DATABASE
+
+		tblOrder: bảng chứa thông tin đơn hàng tổng quát (ai tạo, của khách nào, ngày tạo, địa điểm…).
+
+		tblOrderLine: bảng chứa các dòng hàng (sản phẩm) bên trong đơn hàng.
+
+		tblItems: bảng chứa danh sách tất cả mặt hàng có thể bán hoặc vận chuyển.
+--------------------------------------------------------------------------------------------------------------------------------------------------
+|		Bảng		 |	Ý nghĩa																														|
+|		tblOrder	 |	Đại diện cho đơn hàng tổng của khách hàng (có ngày tạo, khách hàng, tổng tiền, trạng thái, v.v.).							|
+|		tblOrderLine |	Chứa các dòng sản phẩm/dịch vụ trong đơn hàng. Mỗi dòng là 1 sản phẩm cụ thể, có số lượng, giá tại thời điểm mua...			|
+|		tblItems	 |	Danh sách các mặt hàng/dịch vụ có thể bán, để dùng khi tạo dòng đơn hàng.													|
+------------------------------------------------------------------------------------------------------------------------------------------------
+
+ ----> Một đơn hàng (OrderID) có thể có nhiều dòng sản phẩm (OrderLineID), và mỗi dòng sản phẩm tương ứng với một loại hàng (tức là 1 ItemID) hoặc một dịch vụ.
+
+
+
+
+ dotnet ef migrations add InitialCreate -o Migrations -c FleetDB
+ dotnet ef database update  
+         ┌──────────────────────────────────┐
+        │ 1. Viết Model (Class Entity C#)   │
+        └──────────────────────────────────┘
+                         │
+                         ▼
+        ┌──────────────────────────────────┐
+        │ 2. Tạo Migration                  │
+        │    dotnet ef migrations add ...   │
+        └──────────────────────────────────┘
+                         │
+                         ▼
+        ┌──────────────────────────────────┐
+        │ 3. EF Core tạo file trong         │
+        │    thư mục Migrations/            │
+        │    - Up(): thay đổi schema mới    │
+        │    - Down(): rollback schema cũ   │
+        └──────────────────────────────────┘
+                         │
+                         ▼
+        ┌──────────────────────────────────┐
+        │ 4. Áp dụng migration lên DB       │
+        │    dotnet ef database update      │
+        └──────────────────────────────────┘
+                         │
+                         ▼
+        ┌──────────────────────────────────┐
+        │ 5. DB được tạo/cập nhật           │
+        │    theo đúng Model C#             │
+        └──────────────────────────────────┘
+                         │
+                         ▼
+        ┌──────────────────────────────────┐
+        │ 6. Khi thay đổi model → lặp lại   │
+        │    bước 2, 4 để cập nhật DB  4     │
+        └──────────────────────────────────┘
+
+
+
+
+
+      SƠ ĐỒ LUỒNG CỦA  REQUEST TRONG VIỆC DI CONTROLLER
+
+        [Client gửi HTTP Request]
+          │
+          ▼
+         ┌─────────────────────┐
+         │ ASP.NET Core Pipeline│
+         └─────────────────────┘
+                  │
+                  ▼
+         [Router định tuyến request]
+           └──> /Driver/...  →  Chọn DriverController
+                  │
+                  ▼
+         ┌──────────────────────────────────┐
+         │ DI Container kiểm tra constructor│
+         │ DriverController(FleetDB context)│
+         └──────────────────────────────────┘
+                  │
+                  ▼
+        [DI Container tìm cách tạo FleetDB]
+           │
+           ├──> Thấy `FleetDB` đã đăng ký qua:
+           │       services.AddDbContext<FleetDB>(...)
+           │
+           └──> Tạo instance FleetDB:
+                   - Lấy connection string từ IConfiguration
+                   - Gọi UseMySql(...) để cấu hình EF Core
+                   - Lifetime: Scoped (một instance / request)
+                  │
+                  ▼
+        [Inject FleetDB vào DriverController]
+                  │
+                  ▼
+        [Thực thi Action Method trong DriverController]
+                  │
+                  ▼
+        [Hoàn thành request → DI Dispose FleetDB]
+
+
+
+
+        // Luồng Design Pattern
+        Controller → Service Layer → Unit of Work → Multiple Repositories → Database
+                              ↓
+                     Transaction Management
